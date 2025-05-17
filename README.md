@@ -1,5 +1,7 @@
 # plesiosaur
 
+🌊 + 🦕
+
 A nascent maelstrom node in typescript on the deno runtime.
 
 Messages handled:
