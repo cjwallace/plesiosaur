@@ -1,0 +1,13 @@
+{
+  "tasks": {
+    "dev": "deno run --watch main.ts"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1",
+    "@std/json": "jsr:@std/json@^1.0.2",
+    "@std/streams": "jsr:@std/streams@^1.0.9",
+    "ts-pattern": "npm:ts-pattern@^5.7.0",
+    "xstate": "npm:xstate@^5.19.3",
+    "zod": "npm:zod@^3.24.4"
+  }
+}
