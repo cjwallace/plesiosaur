@@ -127,27 +127,13 @@ export function handleRequest(node: Node, request: JsonValue) {
   const message = messageSchema.parse(request);
   const response = match(message)
     .returnType<Response>()
-    .with({ body: { type: "init" } }, (msg) => {
-      return handleInit(node, msg);
-    })
-    .with({ body: { type: "echo" } }, (msg) => {
-      return handleEcho(node, msg);
-    })
-    .with({ body: { type: "generate" } }, (msg) => {
-      return handleGenerate(node, msg);
-    })
-    .with({ body: { type: "broadcast" } }, (msg) => {
-      return handleBroadcast(node, msg);
-    })
-    .with({ body: { type: "read" } }, (msg) => {
-      return handleRead(node, msg);
-    })
-    .with({ body: { type: "topology" } }, (msg) => {
-      return handleTopology(node, msg);
-    })
-    .otherwise((msg) => {
-      return handleError(node, msg);
-    });
+    .with({ body: { type: "init" } }, (msg) => handleInit(node, msg))
+    .with({ body: { type: "echo" } }, (msg) => handleEcho(node, msg))
+    .with({ body: { type: "generate" } }, (msg) => handleGenerate(node, msg))
+    .with({ body: { type: "broadcast" } }, (msg) => handleBroadcast(node, msg))
+    .with({ body: { type: "read" } }, (msg) => handleRead(node, msg))
+    .with({ body: { type: "topology" } }, (msg) => handleTopology(node, msg))
+    .otherwise((msg) => handleError(node, msg));
   node.incrementMsgId();
   return response;
 }
