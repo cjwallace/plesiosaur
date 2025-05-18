@@ -42,6 +42,14 @@ const broadcastSchema = baseMessageSchema.extend({
   }),
 });
 
+const broadcastOkSchema = baseMessageSchema.extend({
+  body: z.object({
+    type: z.literal("broadcast_ok"),
+    msg_id: z.optional(z.number()),
+    in_reply_to: z.optional(z.number()),
+  }),
+});
+
 const readSchema = baseMessageSchema.extend({
   body: z.object({
     type: z.literal("read"),
@@ -62,6 +70,7 @@ export const messageSchema = z.union([
   echoSchema,
   generateSchema,
   broadcastSchema,
+  broadcastOkSchema,
   readSchema,
   topologySchema,
 ]);

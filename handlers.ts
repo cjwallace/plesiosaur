@@ -78,11 +78,38 @@ function handleGenerate(
   return createResponse(node, request, withReplyTo(request, body));
 }
 
+function makeBroadcastMessage(
+  node: Node,
+  dest: string,
+  message: number,
+): BroadcastRequest {
+  const body = {
+    type: "broadcast" as const,
+    msg_id: node.msgId,
+    message,
+  };
+  return { src: node.nodeId, dest: dest, body };
+}
+
+function broadcastMessage(node: Node, message: number) {
+  const neighbours = node.topology[node.nodeId];
+  for (const neighbor of neighbours) {
+    const request = makeBroadcastMessage(node, neighbor, message);
+    console.log(JSON.stringify(request));
+    node.incrementMsgId();
+  }
+}
+
 function handleBroadcast(
   node: Node,
   request: BroadcastRequest,
 ): BroadcastResponse {
-  node.messages.push(request.body.message);
+  const message = request.body.message;
+
+  if (!node.messages.includes(message)) {
+    node.messages.push(message);
+    broadcastMessage(node, request.body.message);
+  }
 
   const body: BroadcastResponse["body"] = {
     type: "broadcast_ok" as const,
@@ -105,6 +132,7 @@ function handleTopology(
   node: Node,
   request: TopologyRequest,
 ): TopologyResponse {
+  node.topology = request.body.topology;
   const body: TopologyResponse["body"] = {
     type: "topology_ok" as const,
   };
@@ -125,6 +153,12 @@ function handleError(node: Node, request: Message): ErrorResponse {
 
 export function handleRequest(node: Node, request: JsonValue) {
   const message = messageSchema.parse(request);
+
+  // Catch any messages that require no response
+  if (message.body.type === "broadcast_ok") {
+    return null;
+  }
+
   const response = match(message)
     .returnType<Response>()
     .with({ body: { type: "init" } }, (msg) => handleInit(node, msg))

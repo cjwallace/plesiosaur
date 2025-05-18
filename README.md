@@ -8,6 +8,9 @@ Messages handled:
 - init
 - echo
 - generate
+- broadcast (not fault tolerant)
+- read
+- topology
 
 Any other message type currently gets a `{code: 10, text: "Unsupported request message" }` response.
 

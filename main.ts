@@ -16,7 +16,9 @@ async function readLines(handler: (line: JsonValue) => JsonValue) {
 
   for await (const data of readable) {
     const response = handler(data);
-    console.log(JSON.stringify(response));
+    if (response !== null) {
+      console.log(JSON.stringify(response));
+    }
   }
 }
 
