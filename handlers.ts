@@ -7,15 +7,22 @@ import { match } from "ts-pattern";
 
 import Node from "./node.ts";
 import {
+  BroadcastRequest,
+  BroadcastResponse,
   EchoRequest,
   EchoResponse,
   ErrorResponse,
+  GenerateRequest,
   GenerateResponse,
   InitRequest,
   InitResponse,
   Message,
   messageSchema,
+  ReadRequest,
+  ReadResponse,
   Response,
+  TopologyRequest,
+  TopologyResponse,
 } from "./messages.ts";
 
 function withReplyTo<T extends Response["body"]>(message: Message, body: T): T {
@@ -58,11 +65,48 @@ function handleEcho(node: Node, request: EchoRequest): EchoResponse {
   return createResponse(node, request, withReplyTo(request, body));
 }
 
-function handleGenerate(node: Node, request: Message): GenerateResponse {
+function handleGenerate(
+  node: Node,
+  request: GenerateRequest,
+): GenerateResponse {
   const body: GenerateResponse["body"] = {
     type: "generate_ok" as const,
     msg_id: node.msgId,
     id: `${node.nodeId}-${node.msgId}`,
+  };
+
+  return createResponse(node, request, withReplyTo(request, body));
+}
+
+function handleBroadcast(
+  node: Node,
+  request: BroadcastRequest,
+): BroadcastResponse {
+  node.messages.push(request.body.message);
+
+  const body: BroadcastResponse["body"] = {
+    type: "broadcast_ok" as const,
+    msg_id: node.msgId,
+  };
+
+  return createResponse(node, request, withReplyTo(request, body));
+}
+
+function handleRead(node: Node, request: ReadRequest): ReadResponse {
+  const body: ReadResponse["body"] = {
+    type: "read_ok" as const,
+    messages: node.messages,
+  };
+
+  return createResponse(node, request, withReplyTo(request, body));
+}
+
+function handleTopology(
+  node: Node,
+  request: TopologyRequest,
+): TopologyResponse {
+  const body: TopologyResponse["body"] = {
+    type: "topology_ok" as const,
   };
 
   return createResponse(node, request, withReplyTo(request, body));
@@ -91,6 +135,15 @@ export function handleRequest(node: Node, request: JsonValue) {
     })
     .with({ body: { type: "generate" } }, (msg) => {
       return handleGenerate(node, msg);
+    })
+    .with({ body: { type: "broadcast" } }, (msg) => {
+      return handleBroadcast(node, msg);
+    })
+    .with({ body: { type: "read" } }, (msg) => {
+      return handleRead(node, msg);
+    })
+    .with({ body: { type: "topology" } }, (msg) => {
+      return handleTopology(node, msg);
     })
     .otherwise((msg) => {
       return handleError(node, msg);

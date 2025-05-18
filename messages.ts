@@ -34,15 +34,44 @@ const generateSchema = baseMessageSchema.extend({
   }),
 });
 
+const broadcastSchema = baseMessageSchema.extend({
+  body: z.object({
+    type: z.literal("broadcast"),
+    msg_id: z.optional(z.number()),
+    message: z.number(),
+  }),
+});
+
+const readSchema = baseMessageSchema.extend({
+  body: z.object({
+    type: z.literal("read"),
+    msg_id: z.optional(z.number()),
+  }),
+});
+
+const topologySchema = baseMessageSchema.extend({
+  body: z.object({
+    type: z.literal("topology"),
+    msg_id: z.optional(z.number()),
+    topology: z.record(z.string(), z.array(z.string())),
+  }),
+});
+
 export const messageSchema = z.union([
   initSchema,
   echoSchema,
   generateSchema,
+  broadcastSchema,
+  readSchema,
+  topologySchema,
 ]);
 
 export type InitRequest = z.infer<typeof initSchema>;
 export type EchoRequest = z.infer<typeof echoSchema>;
 export type GenerateRequest = z.infer<typeof generateSchema>;
+export type BroadcastRequest = z.infer<typeof broadcastSchema>;
+export type ReadRequest = z.infer<typeof readSchema>;
+export type TopologyRequest = z.infer<typeof topologySchema>;
 export type Message = z.infer<typeof messageSchema>;
 
 type BaseResponse = {
@@ -64,6 +93,32 @@ export type EchoResponse = BaseResponse & {
   };
 };
 
+export type GenerateResponse = BaseResponse & {
+  body: {
+    type: "generate_ok";
+    id: string;
+  };
+};
+
+export type BroadcastResponse = BaseResponse & {
+  body: {
+    type: "broadcast_ok";
+  };
+};
+
+export type ReadResponse = BaseResponse & {
+  body: {
+    type: "read_ok";
+    messages: number[];
+  };
+};
+
+export type TopologyResponse = BaseResponse & {
+  body: {
+    type: "topology_ok";
+  };
+};
+
 export type ErrorResponse = BaseResponse & {
   body: {
     type: "error";
@@ -72,15 +127,11 @@ export type ErrorResponse = BaseResponse & {
   };
 };
 
-export type GenerateResponse = BaseResponse & {
-  body: {
-    type: "generate_ok";
-    id: string;
-  };
-};
-
 export type Response =
   | InitResponse
   | EchoResponse
   | GenerateResponse
+  | BroadcastResponse
+  | ReadResponse
+  | TopologyResponse
   | ErrorResponse;

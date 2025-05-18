@@ -6,6 +6,7 @@ class Node {
   nodeId: string = "";
   nodeIds: string[] = [];
   msgId: number = 0;
+  messages: number[] = [];
 
   init(node_id: string, node_ids: string[]) {
     this.nodeId = node_id;
