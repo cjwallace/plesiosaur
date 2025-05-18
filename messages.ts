@@ -27,13 +27,22 @@ const echoSchema = baseMessageSchema.extend({
   }),
 });
 
+const generateSchema = baseMessageSchema.extend({
+  body: z.object({
+    type: z.literal("generate"),
+    msg_id: z.optional(z.number()),
+  }),
+});
+
 export const messageSchema = z.union([
   initSchema,
   echoSchema,
+  generateSchema,
 ]);
 
 export type InitRequest = z.infer<typeof initSchema>;
 export type EchoRequest = z.infer<typeof echoSchema>;
+export type GenerateRequest = z.infer<typeof generateSchema>;
 export type Message = z.infer<typeof messageSchema>;
 
 type BaseResponse = { src: string; dest: string };
@@ -65,4 +74,17 @@ export type ErrorResponse = BaseResponse & {
   };
 };
 
-export type Response = InitResponse | EchoResponse | ErrorResponse;
+export type GenerateResponse = BaseResponse & {
+  body: {
+    type: "generate_ok";
+    id: string;
+    msg_id?: number;
+    in_reply_to?: string;
+  };
+};
+
+export type Response =
+  | InitResponse
+  | EchoResponse
+  | GenerateResponse
+  | ErrorResponse;

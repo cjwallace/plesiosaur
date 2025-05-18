@@ -10,6 +10,7 @@ import {
   EchoRequest,
   EchoResponse,
   ErrorResponse,
+  GenerateResponse,
   InitRequest,
   InitResponse,
   Message,
@@ -57,6 +58,16 @@ function handleEcho(node: Node, request: EchoRequest): EchoResponse {
   return createResponse(node, request, withReplyTo(request, body));
 }
 
+function handleGenerate(node: Node, request: Message): GenerateResponse {
+  const body: GenerateResponse["body"] = {
+    type: "generate_ok" as const,
+    msg_id: node.msgId,
+    id: `${node.nodeId}-${node.msgId}`,
+  };
+
+  return createResponse(node, request, withReplyTo(request, body));
+}
+
 function handleError(node: Node, request: Message): ErrorResponse {
   const body: ErrorResponse["body"] = {
     type: "error",
@@ -77,6 +88,9 @@ export function handleRequest(node: Node, request: JsonValue) {
     })
     .with({ body: { type: "echo" } }, (msg) => {
       return handleEcho(node, msg);
+    })
+    .with({ body: { type: "generate" } }, (msg) => {
+      return handleGenerate(node, msg);
     })
     .otherwise((msg) => {
       return handleError(node, msg);
