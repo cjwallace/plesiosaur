@@ -45,13 +45,15 @@ export type EchoRequest = z.infer<typeof echoSchema>;
 export type GenerateRequest = z.infer<typeof generateSchema>;
 export type Message = z.infer<typeof messageSchema>;
 
-type BaseResponse = { src: string; dest: string };
+type BaseResponse = {
+  src: string;
+  dest: string;
+  body: { msg_id?: number; in_reply_to?: string };
+};
 
 export type InitResponse = BaseResponse & {
   body: {
     type: "init_ok";
-    msg_id?: number;
-    in_reply_to?: string;
   };
 };
 
@@ -59,8 +61,6 @@ export type EchoResponse = BaseResponse & {
   body: {
     type: "echo_ok";
     echo: string;
-    msg_id?: number;
-    in_reply_to?: string;
   };
 };
 
@@ -69,8 +69,6 @@ export type ErrorResponse = BaseResponse & {
     type: "error";
     code: number;
     text: string;
-    msg_id?: number;
-    in_reply_to?: string;
   };
 };
 
@@ -78,8 +76,6 @@ export type GenerateResponse = BaseResponse & {
   body: {
     type: "generate_ok";
     id: string;
-    msg_id?: number;
-    in_reply_to?: string;
   };
 };
 
