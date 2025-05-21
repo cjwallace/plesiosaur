@@ -44,7 +44,10 @@ function createResponse<T extends Response>(
   } as T;
 }
 
-function handleInit(node: Node, request: InitRequest): InitResponse {
+function* handleInit(
+  node: Node,
+  request: InitRequest,
+): Generator<InitResponse> {
   node.init(request.body.node_id, request.body.node_ids);
 
   const body: InitResponse["body"] = {
@@ -52,30 +55,33 @@ function handleInit(node: Node, request: InitRequest): InitResponse {
     msg_id: node.msgId,
   };
 
-  return createResponse(node, request, withReplyTo(request, body));
+  yield createResponse(node, request, withReplyTo(request, body));
 }
 
-function handleEcho(node: Node, request: EchoRequest): EchoResponse {
+function* handleEcho(
+  node: Node,
+  request: EchoRequest,
+): Generator<EchoResponse> {
   const body: EchoResponse["body"] = {
     type: "echo_ok" as const,
     msg_id: node.msgId,
     echo: request.body.echo,
   };
 
-  return createResponse(node, request, withReplyTo(request, body));
+  yield createResponse(node, request, withReplyTo(request, body));
 }
 
-function handleGenerate(
+function* handleGenerate(
   node: Node,
   request: GenerateRequest,
-): GenerateResponse {
+): Generator<GenerateResponse> {
   const body: GenerateResponse["body"] = {
     type: "generate_ok" as const,
     msg_id: node.msgId,
     id: `${node.nodeId}-${node.msgId}`,
   };
 
-  return createResponse(node, request, withReplyTo(request, body));
+  yield createResponse(node, request, withReplyTo(request, body));
 }
 
 function makeBroadcastMessage(
@@ -91,24 +97,24 @@ function makeBroadcastMessage(
   return { src: node.nodeId, dest: dest, body };
 }
 
-function broadcastMessage(node: Node, message: number) {
+function* broadcastMessage(node: Node, message: number) {
   const neighbours = node.topology[node.nodeId];
   for (const neighbor of neighbours) {
     const request = makeBroadcastMessage(node, neighbor, message);
-    console.log(JSON.stringify(request));
     node.incrementMsgId();
+    yield request;
   }
 }
 
-function handleBroadcast(
+function* handleBroadcast(
   node: Node,
   request: BroadcastRequest,
-): BroadcastResponse {
+): Generator<BroadcastRequest | BroadcastResponse> {
   const message = request.body.message;
 
   if (!node.messages.includes(message)) {
     node.messages.push(message);
-    broadcastMessage(node, request.body.message);
+    yield* broadcastMessage(node, request.body.message);
   }
 
   const body: BroadcastResponse["body"] = {
@@ -116,31 +122,41 @@ function handleBroadcast(
     msg_id: node.msgId,
   };
 
-  return createResponse(node, request, withReplyTo(request, body));
+  yield createResponse<BroadcastResponse>(
+    node,
+    request,
+    withReplyTo(request, body),
+  );
 }
 
-function handleRead(node: Node, request: ReadRequest): ReadResponse {
+function* handleRead(
+  node: Node,
+  request: ReadRequest,
+): Generator<ReadResponse> {
   const body: ReadResponse["body"] = {
     type: "read_ok" as const,
     messages: node.messages,
   };
 
-  return createResponse(node, request, withReplyTo(request, body));
+  yield createResponse(node, request, withReplyTo(request, body));
 }
 
-function handleTopology(
+function* handleTopology(
   node: Node,
   request: TopologyRequest,
-): TopologyResponse {
+): Generator<TopologyResponse> {
   node.topology = request.body.topology;
   const body: TopologyResponse["body"] = {
     type: "topology_ok" as const,
   };
 
-  return createResponse(node, request, withReplyTo(request, body));
+  yield createResponse(node, request, withReplyTo(request, body));
 }
 
-function handleError(node: Node, request: Message): ErrorResponse {
+function* handleError(
+  node: Node,
+  request: Message,
+): Generator<ErrorResponse> {
   const body: ErrorResponse["body"] = {
     type: "error",
     code: 10,
@@ -148,19 +164,22 @@ function handleError(node: Node, request: Message): ErrorResponse {
     msg_id: node.msgId,
   };
 
-  return createResponse(node, request, withReplyTo(request, body));
+  yield createResponse(node, request, withReplyTo(request, body));
 }
 
-export function handleRequest(node: Node, request: JsonValue) {
+export function* handleRequest(
+  node: Node,
+  request: JsonValue,
+): Generator<JsonValue> {
   const message = messageSchema.parse(request);
 
   // Catch any messages that require no response
   if (message.body.type === "broadcast_ok") {
-    return null;
+    return;
   }
 
   const response = match(message)
-    .returnType<Response>()
+    .returnType<Generator<Message | Response>>()
     .with({ body: { type: "init" } }, (msg) => handleInit(node, msg))
     .with({ body: { type: "echo" } }, (msg) => handleEcho(node, msg))
     .with({ body: { type: "generate" } }, (msg) => handleGenerate(node, msg))
@@ -169,5 +188,5 @@ export function handleRequest(node: Node, request: JsonValue) {
     .with({ body: { type: "topology" } }, (msg) => handleTopology(node, msg))
     .otherwise((msg) => handleError(node, msg));
   node.incrementMsgId();
-  return response;
+  yield* response;
 }

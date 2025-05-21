@@ -8,16 +8,16 @@ import { JsonParseStream, JsonValue } from "jsr:@std/json";
 import Node from "./node.ts";
 import { handleRequest } from "./handlers.ts";
 
-async function readLines(handler: (line: JsonValue) => JsonValue) {
+async function readLines(handler: (line: JsonValue) => Generator<JsonValue>) {
   const readable = Deno.stdin.readable
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(new TextLineStream())
     .pipeThrough(new JsonParseStream());
 
   for await (const data of readable) {
-    const response = handler(data);
-    if (response !== null) {
-      console.log(JSON.stringify(response));
+    const messages = handler(data);
+    for (const message of messages) {
+      console.log(JSON.stringify(message));
     }
   }
 }
