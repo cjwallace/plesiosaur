@@ -8,7 +8,7 @@ Messages handled:
 - init
 - echo
 - generate
-- broadcast (not fault tolerant)
+- broadcast
 - read
 - topology
 

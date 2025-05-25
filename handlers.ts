@@ -15,7 +15,6 @@ import {
   GenerateResponse,
   InitRequest,
   InitResponse,
-  isRequestMessage,
   Message,
   ReadRequest,
   ReadResponse,
@@ -100,12 +99,12 @@ function makeBroadcastMessage(
   return { src: node.nodeId, dest: dest, body };
 }
 
-function* broadcastMessage(node: Node, message: number) {
-  const neighbours = node.topology[node.nodeId];
+function* broadcastMessage(node: Node, request: BroadcastRequest) {
+  const neighbours = node.topology[node.nodeId].filter((neighbor) => neighbor !== request.src);
   for (const neighbor of neighbours) {
-    const request = makeBroadcastMessage(node, neighbor, message);
+    const newRequest = makeBroadcastMessage(node, neighbor, request.body.message);
     node.incrementMsgId();
-    yield request;
+    yield newRequest;
   }
 }
 
@@ -117,7 +116,7 @@ function* handleBroadcast(
 
   if (!node.messages.includes(message)) {
     node.messages.push(message);
-    yield* broadcastMessage(node, request.body.message);
+    yield* broadcastMessage(node, request);
   }
 
   const body: BroadcastResponse["body"] = {
@@ -138,6 +137,7 @@ function* handleRead(
 ): Generator<ReadResponse> {
   const body: ReadResponse["body"] = {
     type: "read_ok" as const,
+    msg_id: node.msgId,
     messages: node.messages,
   };
 
@@ -151,6 +151,7 @@ function* handleTopology(
   node.topology = request.body.topology;
   const body: TopologyResponse["body"] = {
     type: "topology_ok" as const,
+    msg_id: node.msgId,
   };
 
   yield createResponse(node, request, withReplyTo(request, body));
@@ -170,23 +171,19 @@ function* handleError(
   yield createResponse(node, message, withReplyTo(message, body));
 }
 
-export function* handleMessage(
+export function* handleRequestMessage(
   node: Node,
-  message: Message,
+  message: RequestMessage,
 ): Generator<Message> {
-  if (isRequestMessage(message)) {
-    const response = match(message)
-      .returnType<Generator<RequestMessage | ResponseMessage>>()
-      .with({ body: { type: "init" } }, (msg) => handleInit(node, msg))
-      .with({ body: { type: "echo" } }, (msg) => handleEcho(node, msg))
-      .with({ body: { type: "generate" } }, (msg) => handleGenerate(node, msg))
-      .with({ body: { type: "broadcast" } }, (msg) => handleBroadcast(node, msg))
-      .with({ body: { type: "read" } }, (msg) => handleRead(node, msg))
-      .with({ body: { type: "topology" } }, (msg) => handleTopology(node, msg))
-      .otherwise((msg) => handleError(node, msg));
-    node.incrementMsgId();
-    yield* response;
-  } else {
-    return;
-  }
+  const response = match(message)
+    .returnType<Generator<RequestMessage | ResponseMessage>>()
+    .with({ body: { type: "init" } }, (msg) => handleInit(node, msg))
+    .with({ body: { type: "echo" } }, (msg) => handleEcho(node, msg))
+    .with({ body: { type: "generate" } }, (msg) => handleGenerate(node, msg))
+    .with({ body: { type: "broadcast" } }, (msg) => handleBroadcast(node, msg))
+    .with({ body: { type: "read" } }, (msg) => handleRead(node, msg))
+    .with({ body: { type: "topology" } }, (msg) => handleTopology(node, msg))
+    .otherwise((msg) => handleError(node, msg));
+  node.incrementMsgId();
+  yield* response;
 }

@@ -14,7 +14,7 @@ const initRequest = z.object({
 
 const initResponse = z.object({
   type: z.literal("init_ok"),
-  msg_id: z.optional(z.number()),
+  msg_id: z.number(),
   in_reply_to: z.optional(z.number()),
 });
 
@@ -27,7 +27,7 @@ const echoRequest = z.object({
 const echoResponse = z.object({
   type: z.literal("echo_ok"),
   echo: z.string(),
-  msg_id: z.optional(z.number()),
+  msg_id: z.number(),
   in_reply_to: z.optional(z.number()),
 });
 
@@ -39,7 +39,7 @@ const generateRequest = z.object({
 const generateResponse = z.object({
   type: z.literal("generate_ok"),
   id: z.string(),
-  msg_id: z.optional(z.number()),
+  msg_id: z.number(),
   in_reply_to: z.optional(z.number()),
 });
 
@@ -51,7 +51,7 @@ const broadcastRequest = z.object({
 
 const broadcastResponse = z.object({
   type: z.literal("broadcast_ok"),
-  msg_id: z.optional(z.number()),
+  msg_id: z.number(),
   in_reply_to: z.optional(z.number()),
 });
 
@@ -63,7 +63,7 @@ const readRequest = z.object({
 const readResponse = z.object({
   type: z.literal("read_ok"),
   messages: z.array(z.number()),
-  msg_id: z.optional(z.number()),
+  msg_id: z.number(),
   in_reply_to: z.optional(z.number()),
 });
 
@@ -75,7 +75,7 @@ const topologyRequest = z.object({
 
 const topologyResponse = z.object({
   type: z.literal("topology_ok"),
-  msg_id: z.optional(z.number()),
+  msg_id: z.number(),
   in_reply_to: z.optional(z.number()),
 });
 
@@ -83,7 +83,7 @@ const errorResponse = z.object({
   type: z.literal("error"),
   code: z.number(),
   text: z.string(),
-  msg_id: z.optional(z.number()),
+  msg_id: z.number(),
   in_reply_to: z.optional(z.number()),
 });
 

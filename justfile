@@ -1,20 +1,26 @@
+NODE := 'plesiosaur'
+MAELSTROM := 'maelstrom/maelstrom'
+
 @list:
     just --list
 
 build:
-    deno compile --allow-read --allow-write main.ts -o plesiosaur
+    deno compile --allow-read --allow-write main.ts -o {{NODE}}
 
 echo: build
-    ./maelstrom/maelstrom test -w echo --bin ./plesiosaur --time-limit 5
+    {{MAELSTROM}} test -w echo --bin {{NODE}} --time-limit 5
 
 generate: build
-    ./maelstrom/maelstrom test -w unique-ids --bin ./plesiosaur --time-limit 30 --rate 1000 --node-count 3 --availability total --nemesis partition
+    {{MAELSTROM}} test -w unique-ids --bin {{NODE}} --time-limit 30 --rate 1000 --node-count 3 --availability total --nemesis partition
 
 single-node-broadcast: build
-    ./maelstrom/maelstrom test -w broadcast --bin ./plesiosaur --node-count 1 --time-limit 20 --rate 10
+    {{MAELSTROM}} test -w broadcast --bin {{NODE}} --node-count 1 --time-limit 20 --rate 10
 
 multi-node-broadcast: build
-    ./maelstrom/maelstrom test -w broadcast --bin ./plesiosaur --node-count 5 --time-limit 30 --rate 10
+    {{MAELSTROM}} test -w broadcast --bin {{NODE}} --node-count 5 --time-limit 5 --rate 10
+
+fault-tolerant-broadcast: build
+    {{MAELSTROM}} test -w broadcast --bin {{NODE}} --node-count 5 --time-limit 20 --rate 10 --nemesis partition
 
 all:
     @echo "Building plesiosaur binary"
