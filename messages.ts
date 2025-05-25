@@ -5,142 +5,159 @@
 
 import { z } from "zod";
 
-const baseMessageSchema = z.object({
-  src: z.string(),
-  dest: z.string(),
+const initRequest = z.object({
+  type: z.literal("init"),
+  msg_id: z.optional(z.number()),
+  node_id: z.string(),
+  node_ids: z.array(z.string()),
 });
 
-const initSchema = baseMessageSchema.extend({
-  body: z.object({
-    type: z.literal("init"),
-    msg_id: z.optional(z.number()),
-    node_id: z.string(),
-    node_ids: z.array(z.string()),
-  }),
+const initResponse = z.object({
+  type: z.literal("init_ok"),
+  msg_id: z.optional(z.number()),
+  in_reply_to: z.optional(z.number()),
 });
 
-const echoSchema = baseMessageSchema.extend({
-  body: z.object({
-    type: z.literal("echo"),
-    msg_id: z.optional(z.number()),
-    echo: z.string(),
-  }),
+const echoRequest = z.object({
+  type: z.literal("echo"),
+  msg_id: z.optional(z.number()),
+  echo: z.string(),
 });
 
-const generateSchema = baseMessageSchema.extend({
-  body: z.object({
-    type: z.literal("generate"),
-    msg_id: z.optional(z.number()),
-  }),
+const echoResponse = z.object({
+  type: z.literal("echo_ok"),
+  echo: z.string(),
+  msg_id: z.optional(z.number()),
+  in_reply_to: z.optional(z.number()),
 });
 
-const broadcastSchema = baseMessageSchema.extend({
-  body: z.object({
-    type: z.literal("broadcast"),
-    msg_id: z.optional(z.number()),
-    message: z.number(),
-  }),
+const generateRequest = z.object({
+  type: z.literal("generate"),
+  msg_id: z.optional(z.number()),
 });
 
-const broadcastOkSchema = baseMessageSchema.extend({
-  body: z.object({
-    type: z.literal("broadcast_ok"),
-    msg_id: z.optional(z.number()),
-    in_reply_to: z.optional(z.number()),
-  }),
+const generateResponse = z.object({
+  type: z.literal("generate_ok"),
+  id: z.string(),
+  msg_id: z.optional(z.number()),
+  in_reply_to: z.optional(z.number()),
 });
 
-const readSchema = baseMessageSchema.extend({
-  body: z.object({
-    type: z.literal("read"),
-    msg_id: z.optional(z.number()),
-  }),
+const broadcastRequest = z.object({
+  type: z.literal("broadcast"),
+  msg_id: z.optional(z.number()),
+  message: z.number(),
 });
 
-const topologySchema = baseMessageSchema.extend({
-  body: z.object({
-    type: z.literal("topology"),
-    msg_id: z.optional(z.number()),
-    topology: z.record(z.string(), z.array(z.string())),
-  }),
+const broadcastResponse = z.object({
+  type: z.literal("broadcast_ok"),
+  msg_id: z.optional(z.number()),
+  in_reply_to: z.optional(z.number()),
 });
 
-export const messageSchema = z.union([
-  initSchema,
-  echoSchema,
-  generateSchema,
-  broadcastSchema,
-  broadcastOkSchema,
-  readSchema,
-  topologySchema,
+const readRequest = z.object({
+  type: z.literal("read"),
+  msg_id: z.optional(z.number()),
+});
+
+const readResponse = z.object({
+  type: z.literal("read_ok"),
+  messages: z.array(z.number()),
+  msg_id: z.optional(z.number()),
+  in_reply_to: z.optional(z.number()),
+});
+
+const topologyRequest = z.object({
+  type: z.literal("topology"),
+  msg_id: z.optional(z.number()),
+  topology: z.record(z.string(), z.array(z.string())),
+});
+
+const topologyResponse = z.object({
+  type: z.literal("topology_ok"),
+  msg_id: z.optional(z.number()),
+  in_reply_to: z.optional(z.number()),
+});
+
+const errorResponse = z.object({
+  type: z.literal("error"),
+  code: z.number(),
+  text: z.string(),
+  msg_id: z.optional(z.number()),
+  in_reply_to: z.optional(z.number()),
+});
+
+const requestBody = z.discriminatedUnion("type", [
+  initRequest,
+  echoRequest,
+  generateRequest,
+  broadcastRequest,
+  readRequest,
+  topologyRequest,
 ]);
 
-export type InitRequest = z.infer<typeof initSchema>;
-export type EchoRequest = z.infer<typeof echoSchema>;
-export type GenerateRequest = z.infer<typeof generateSchema>;
-export type BroadcastRequest = z.infer<typeof broadcastSchema>;
-export type ReadRequest = z.infer<typeof readSchema>;
-export type TopologyRequest = z.infer<typeof topologySchema>;
+const responseBody = z.discriminatedUnion("type", [
+  initResponse,
+  echoResponse,
+  generateResponse,
+  broadcastResponse,
+  readResponse,
+  topologyResponse,
+  errorResponse,
+]);
+
+const requestSchema = z.object({
+  src: z.string(),
+  dest: z.string(),
+  body: requestBody,
+});
+
+const responseSchema = z.object({
+  src: z.string(),
+  dest: z.string(),
+  body: responseBody,
+});
+
+export const messageSchema = z.object({
+  src: z.string(),
+  dest: z.string(),
+  body: z.discriminatedUnion("type", [
+    ...requestBody.options,
+    ...responseBody.options,
+  ]),
+});
+
+export type RequestMessage = z.infer<typeof requestSchema>;
+export type ResponseMessage = z.infer<typeof responseSchema>;
 export type Message = z.infer<typeof messageSchema>;
 
-type BaseResponse = {
+// Helper type for messages with specific body types
+type MessageWithBody<T> = {
   src: string;
   dest: string;
-  body: { msg_id?: number; in_reply_to?: string };
+  body: T;
 };
 
-export type InitResponse = BaseResponse & {
-  body: {
-    type: "init_ok";
-  };
-};
+export type InitRequest = MessageWithBody<z.infer<typeof initRequest>>;
+export type EchoRequest = MessageWithBody<z.infer<typeof echoRequest>>;
+export type GenerateRequest = MessageWithBody<z.infer<typeof generateRequest>>;
+export type BroadcastRequest = MessageWithBody<z.infer<typeof broadcastRequest>>;
+export type ReadRequest = MessageWithBody<z.infer<typeof readRequest>>;
+export type TopologyRequest = MessageWithBody<z.infer<typeof topologyRequest>>;
 
-export type EchoResponse = BaseResponse & {
-  body: {
-    type: "echo_ok";
-    echo: string;
-  };
-};
+export type InitResponse = MessageWithBody<z.infer<typeof initResponse>>;
+export type EchoResponse = MessageWithBody<z.infer<typeof echoResponse>>;
+export type GenerateResponse = MessageWithBody<z.infer<typeof generateResponse>>;
+export type BroadcastResponse = MessageWithBody<z.infer<typeof broadcastResponse>>;
+export type ReadResponse = MessageWithBody<z.infer<typeof readResponse>>;
+export type TopologyResponse = MessageWithBody<z.infer<typeof topologyResponse>>;
+export type ErrorResponse = MessageWithBody<z.infer<typeof errorResponse>>;
 
-export type GenerateResponse = BaseResponse & {
-  body: {
-    type: "generate_ok";
-    id: string;
-  };
-};
+// Type guards
+export function isRequestMessage(message: unknown): message is RequestMessage {
+  return requestSchema.safeParse(message).success;
+}
 
-export type BroadcastResponse = BaseResponse & {
-  body: {
-    type: "broadcast_ok";
-  };
-};
-
-export type ReadResponse = BaseResponse & {
-  body: {
-    type: "read_ok";
-    messages: number[];
-  };
-};
-
-export type TopologyResponse = BaseResponse & {
-  body: {
-    type: "topology_ok";
-  };
-};
-
-export type ErrorResponse = BaseResponse & {
-  body: {
-    type: "error";
-    code: number;
-    text: string;
-  };
-};
-
-export type Response =
-  | InitResponse
-  | EchoResponse
-  | GenerateResponse
-  | BroadcastResponse
-  | ReadResponse
-  | TopologyResponse
-  | ErrorResponse;
+export function isResponseMessage(message: unknown): message is ResponseMessage {
+  return responseSchema.safeParse(message).success;
+}

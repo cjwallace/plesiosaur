@@ -2,7 +2,6 @@
  * Message handlers for all supported message types.
  */
 
-import { JsonValue } from "@std/json/types";
 import { match } from "ts-pattern";
 
 import Node from "./node.ts";
@@ -16,25 +15,29 @@ import {
   GenerateResponse,
   InitRequest,
   InitResponse,
+  isRequestMessage,
   Message,
-  messageSchema,
   ReadRequest,
   ReadResponse,
-  Response,
+  RequestMessage,
+  ResponseMessage,
   TopologyRequest,
   TopologyResponse,
 } from "./messages.ts";
 
-function withReplyTo<T extends Response["body"]>(message: Message, body: T): T {
+function withReplyTo<T extends ResponseMessage["body"]>(
+  message: RequestMessage,
+  body: T,
+): T {
   if (message.body.msg_id) {
     return { ...body, in_reply_to: message.body.msg_id };
   }
   return { ...body };
 }
 
-function createResponse<T extends Response>(
+function createResponse<T extends ResponseMessage>(
   node: Node,
-  message: Message,
+  message: RequestMessage,
   body: T["body"],
 ): T {
   return {
@@ -155,7 +158,7 @@ function* handleTopology(
 
 function* handleError(
   node: Node,
-  request: Message,
+  message: RequestMessage,
 ): Generator<ErrorResponse> {
   const body: ErrorResponse["body"] = {
     type: "error",
@@ -164,29 +167,26 @@ function* handleError(
     msg_id: node.msgId,
   };
 
-  yield createResponse(node, request, withReplyTo(request, body));
+  yield createResponse(node, message, withReplyTo(message, body));
 }
 
-export function* handleRequest(
+export function* handleMessage(
   node: Node,
-  request: JsonValue,
-): Generator<JsonValue> {
-  const message = messageSchema.parse(request);
-
-  // Catch any messages that require no response
-  if (message.body.type === "broadcast_ok") {
+  message: Message,
+): Generator<Message> {
+  if (isRequestMessage(message)) {
+    const response = match(message)
+      .returnType<Generator<RequestMessage | ResponseMessage>>()
+      .with({ body: { type: "init" } }, (msg) => handleInit(node, msg))
+      .with({ body: { type: "echo" } }, (msg) => handleEcho(node, msg))
+      .with({ body: { type: "generate" } }, (msg) => handleGenerate(node, msg))
+      .with({ body: { type: "broadcast" } }, (msg) => handleBroadcast(node, msg))
+      .with({ body: { type: "read" } }, (msg) => handleRead(node, msg))
+      .with({ body: { type: "topology" } }, (msg) => handleTopology(node, msg))
+      .otherwise((msg) => handleError(node, msg));
+    node.incrementMsgId();
+    yield* response;
+  } else {
     return;
   }
-
-  const response = match(message)
-    .returnType<Generator<Message | Response>>()
-    .with({ body: { type: "init" } }, (msg) => handleInit(node, msg))
-    .with({ body: { type: "echo" } }, (msg) => handleEcho(node, msg))
-    .with({ body: { type: "generate" } }, (msg) => handleGenerate(node, msg))
-    .with({ body: { type: "broadcast" } }, (msg) => handleBroadcast(node, msg))
-    .with({ body: { type: "read" } }, (msg) => handleRead(node, msg))
-    .with({ body: { type: "topology" } }, (msg) => handleTopology(node, msg))
-    .otherwise((msg) => handleError(node, msg));
-  node.incrementMsgId();
-  yield* response;
 }

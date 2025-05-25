@@ -3,26 +3,32 @@
  */
 
 import { TextLineStream } from "jsr:@std/streams";
-import { JsonParseStream, JsonValue } from "jsr:@std/json";
+import { JsonParseStream } from "jsr:@std/json";
 
 import Node from "./node.ts";
-import { handleRequest } from "./handlers.ts";
+import { handleMessage } from "./handlers.ts";
+import { Message, messageSchema } from "./messages.ts";
 
-async function readLines(handler: (line: JsonValue) => Generator<JsonValue>) {
+async function readLines(handler: (message: Message) => Generator<Message>) {
   const readable = Deno.stdin.readable
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(new TextLineStream())
     .pipeThrough(new JsonParseStream());
 
   for await (const data of readable) {
-    const messages = handler(data);
-    for (const message of messages) {
-      console.log(JSON.stringify(message));
+    try {
+      const message = messageSchema.parse(data);
+      const messages = handler(message);
+      for (const message of messages) {
+        console.log(JSON.stringify(message));
+      }
+    } catch (error) {
+      console.error(error);
     }
   }
 }
 
 if (import.meta.main) {
   const node = new Node();
-  readLines((line) => handleRequest(node, line));
+  readLines((message) => handleMessage(node, message));
 }
