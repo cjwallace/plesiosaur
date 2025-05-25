@@ -16,6 +16,9 @@ import {
   ResponseMessage,
 } from "./messages.ts";
 
+const RPC_TIMEOUT = 1000;
+
+// Store map of {msg_id: {resolve, reject}} for requests awaiting response
 const awaitingResponse = new Map<
   number,
   { resolve: (response: ResponseMessage) => void; reject: (error: Error) => void }
@@ -39,7 +42,7 @@ function rpc(message: Message): Promise<ResponseMessage> {
         code: 0,
         text: `No response received for msg_id: ${msgId}`,
       });
-    }, 1000);
+    }, RPC_TIMEOUT);
     awaitingResponse.set(msgId, {
       resolve: (response: ResponseMessage) => {
         clearTimeout(timeoutId);
@@ -63,7 +66,7 @@ function handleResponseMessage(message: ResponseMessage) {
   }
 }
 
-async function readLines(
+async function handleMessage(
   handleRequest: (message: RequestMessage) => Generator<Message>,
   handleResponse: (message: ResponseMessage) => void,
 ) {
@@ -98,7 +101,7 @@ async function readLines(
 
 if (import.meta.main) {
   const node = new Node();
-  readLines(
+  handleMessage(
     (message) => handleRequestMessage(node, message),
     handleResponseMessage,
   );
