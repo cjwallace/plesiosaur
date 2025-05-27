@@ -1,5 +1,8 @@
-NODE := 'plesiosaur'
+# The maelstrom binary
 MAELSTROM := 'maelstrom/maelstrom'
+
+# The binary for a single maelstrom node
+NODE := 'plesiosaur'
 
 @list:
     just --list
@@ -21,6 +24,9 @@ multi-node-broadcast: build
 
 fault-tolerant-broadcast: build
     {{MAELSTROM}} test -w broadcast --bin {{NODE}} --node-count 5 --time-limit 20 --rate 10 --nemesis partition
+
+efficient-broadcast: build
+    {{MAELSTROM}} test -w broadcast --bin {{NODE}} --node-count 25 --time-limit 20 --rate 100 --latency 100 --topology tree4
 
 all:
     @echo "Building plesiosaur binary"
