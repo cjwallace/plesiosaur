@@ -12,7 +12,6 @@ import {
   isResponseMessage,
   Message,
   messageSchema,
-  RequestMessage,
   ResponseMessage,
 } from "./messages.ts";
 
@@ -29,8 +28,8 @@ function send(message: Message) {
   console.log(JSON.stringify(message));
 }
 
-// Send awaiting response
-function rpc(message: Message): Promise<ResponseMessage> {
+// Send, awaiting response
+function request(message: Message): Promise<ResponseMessage> {
   const msgId = message.body.msg_id;
   if (!msgId) {
     throw new Error("Message ID is missing");
@@ -52,7 +51,7 @@ function rpc(message: Message): Promise<ResponseMessage> {
     });
   });
   send(message);
-  return promise.catch(() => rpc(message));
+  return promise.catch(() => request(message));
 }
 
 function handleResponseMessage(message: ResponseMessage) {
@@ -66,10 +65,26 @@ function handleResponseMessage(message: ResponseMessage) {
   }
 }
 
-async function handleMessage(
-  handleRequest: (message: RequestMessage) => Generator<Message>,
-  handleResponse: (message: ResponseMessage) => void,
-) {
+function handleMessage(node: Node, message: Message) {
+  if (isResponseMessage(message)) {
+    handleResponseMessage(message);
+  }
+
+  if (isRequestMessage(message)) {
+    const messages = handleRequestMessage(node, message);
+    for (const message of messages) {
+      if (isRequestMessage(message)) {
+        request(message);
+      } else {
+        send(message);
+      }
+    }
+  }
+}
+
+if (import.meta.main) {
+  const node = new Node();
+
   const readable = Deno.stdin.readable
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(new TextLineStream())
@@ -78,31 +93,9 @@ async function handleMessage(
   for await (const data of readable) {
     try {
       const message = messageSchema.parse(data);
-
-      if (isResponseMessage(message)) {
-        handleResponse(message);
-      }
-
-      if (isRequestMessage(message)) {
-        const messages = handleRequest(message);
-        for (const message of messages) {
-          if (isRequestMessage(message)) {
-            rpc(message);
-          } else {
-            send(message);
-          }
-        }
-      }
+      handleMessage(node, message);
     } catch (error) {
       console.error(error);
     }
   }
-}
-
-if (import.meta.main) {
-  const node = new Node();
-  handleMessage(
-    (message) => handleRequestMessage(node, message),
-    handleResponseMessage,
-  );
 }
